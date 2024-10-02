@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/Duplom2024/static/css/main.f65fbe4e.css",
+    "main.js": "/Duplom2024/static/js/main.e7d66529.js",
+    "static/js/453.b0632135.chunk.js": "/Duplom2024/static/js/453.b0632135.chunk.js",
+    "index.html": "/Duplom2024/index.html",
+    "main.f65fbe4e.css.map": "/Duplom2024/static/css/main.f65fbe4e.css.map",
+    "main.e7d66529.js.map": "/Duplom2024/static/js/main.e7d66529.js.map",
+    "453.b0632135.chunk.js.map": "/Duplom2024/static/js/453.b0632135.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f65fbe4e.css",
+    "static/js/main.e7d66529.js"
+  ]
+}
