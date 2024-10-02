@@ -9,8 +9,8 @@ import {
 	XAxis,
 	YAxis,
 } from 'recharts'
-import * as XLSX from 'xlsx'
 import './style/salesForecast.css'
+
 type DataPoint = {
 	period: number
 	value: number
@@ -369,24 +369,6 @@ const SalesForecast: React.FC = () => {
 		),
 		[forecastData]
 	)
-	const downloadExcel = useCallback(() => {
-		const workbook = XLSX.utils.book_new()
-
-		// Helper function to convert data to worksheet
-		const dataToSheet = (data: DataPoint[], sheetName: string) => {
-			const worksheet = XLSX.utils.json_to_sheet(data)
-			XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
-		}
-
-		// Add sheets for each table
-		dataToSheet(movingAverageTable, 'Moving Average')
-		dataToSheet(seasonalComponents, 'Seasonal Components')
-		dataToSheet(modelTable, 'Model')
-		dataToSheet(forecastData, 'Forecast')
-
-		// Generate Excel file
-		XLSX.writeFile(workbook, 'sales_forecast.xlsx')
-	}, [movingAverageTable, seasonalComponents, modelTable, forecastData])
 
 	return (
 		<div className='container'>
@@ -430,11 +412,6 @@ const SalesForecast: React.FC = () => {
 						</button>
 					)
 				)}
-			</div>
-			<div className='button-group'>
-				<button onClick={downloadExcel} className='download-button'>
-					Download Excel
-				</button>
 			</div>
 
 			{activeTab === 'moving-average' &&

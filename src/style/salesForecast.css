@@ -1,0 +1,178 @@
+/* Загальні стилі */
+body {
+	font-family: Arial, sans-serif;
+	line-height: 1.6;
+	color: #333;
+	background-color: #f4f4f4;
+	margin: 0;
+	padding: 0;
+}
+
+.container {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 20px;
+}
+
+/* Заголовок */
+h1 {
+	font-size: 24px;
+	font-weight: bold;
+	margin-bottom: 20px;
+	color: #2c3e50;
+}
+
+/* Форма введення */
+.input-group {
+	margin-bottom: 20px;
+}
+
+input[type='number'],
+input[type='text'],
+select {
+	padding: 8px 12px;
+	margin-right: 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+button {
+	padding: 8px 16px;
+	background-color: #3498db;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	transition: background-color 0.3s;
+}
+
+button:hover {
+	background-color: #2980b9;
+}
+
+/* Вкладки */
+.tab-group {
+	margin-bottom: 20px;
+}
+
+.tab-button {
+	padding: 10px 20px;
+	margin-right: 10px;
+	background-color: #ecf0f1;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	transition: background-color 0.3s, color 0.3s;
+}
+
+.tab-button.active {
+	background-color: #3498db;
+	color: white;
+}
+
+/* Таблиці */
+.table-container {
+	overflow-x: auto;
+	margin-bottom: 20px;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	background-color: white;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+table caption {
+	padding: 10px;
+	font-size: 18px;
+	font-weight: bold;
+	background-color: #f8f9fa;
+	border: 1px solid #dee2e6;
+	border-bottom: none;
+}
+
+th,
+td {
+	padding: 12px;
+	text-align: left;
+	border: 1px solid #dee2e6;
+}
+
+thead {
+	background-color: #f8f9fa;
+}
+
+tr:nth-child(even) {
+	background-color: #f8f9fa;
+}
+
+tr:hover {
+	background-color: #e9ecef;
+}
+
+/* Графік */
+.chart-container {
+	height: 400px;
+	margin-top: 20px;
+	background-color: white;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	padding: 20px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.button-group {
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+.download-button {
+	background-color: #27ae60;
+	color: white;
+	padding: 10px 20px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 16px;
+	font-weight: bold;
+	transition: background-color 0.3s, transform 0.1s;
+	display: inline-block;
+}
+
+.download-button:hover {
+	background-color: #2ecc71;
+	transform: translateY(-2px);
+}
+
+.download-button:active {
+	transform: translateY(0);
+}
+
+/* Адаптивний дизайн */
+@media (max-width: 768px) {
+	.input-group {
+		display: flex;
+		flex-direction: column;
+	}
+
+	input[type='number'],
+	input[type='text'],
+	select,
+	button {
+		margin-bottom: 10px;
+		width: 100%;
+	}
+
+	.tab-button {
+		display: block;
+		width: 100%;
+		margin-bottom: 10px;
+	}
+	.download-button {
+		width: 100%;
+		margin-bottom: 10px;
+	}
+}
