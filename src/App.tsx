@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import * as XLSX from 'xlsx'
 import './style/salesForecast.css'
+
 type DataPoint = {
 	period: number
 	value: number
@@ -56,25 +57,27 @@ const SalesForecast: React.FC = () => {
 		const withMovingAverage = data.map((point, index) => {
 			const ma =
 				index >= 3
-					? data
-							.slice(index - 3, index + 1)
-							.reduce((sum, p) => sum + p.value, 0) / 4
+					? (data[index].value +
+							data[index - 1].value +
+							data[index - 2].value +
+							data[index - 3].value) /
+					  4
 					: undefined
 			return { ...point, movingAverage: ma }
 		})
 
 		const movingAverage = withMovingAverage.map((point, index) => {
 			const cma =
-				index >= 4
-					? ((withMovingAverage[index - 1].movingAverage || 0) +
-							(point.movingAverage || 0)) /
+				index >= 3 && index < withMovingAverage.length - 1
+					? (withMovingAverage[index].movingAverage! +
+							withMovingAverage[index + 1].movingAverage!) /
 					  2
 					: undefined
-			const deviation = cma !== undefined ? point.value - cma : undefined
 			return {
 				...point,
 				centeredMovingAverage: cma,
-				deviationFromMovingAverage: deviation,
+				deviationFromMovingAverage:
+					cma !== undefined ? point.value - cma : undefined,
 			}
 		})
 
@@ -85,57 +88,64 @@ const SalesForecast: React.FC = () => {
 		if (movingAverageTable.length < 4) return
 
 		const seasonLength = 4
-		const seasonal = movingAverageTable.map((point, index) => {
-			if (index < 3) return point // Skip first 3 points as they don't have centered moving average
+		const seasonal = movingAverageTable.map(point => {
+			if (point.centeredMovingAverage === undefined) return point
 
-			const seasonalComponent =
-				model === 'additive'
-					? point.value - (point.centeredMovingAverage || 0)
-					: point.centeredMovingAverage && point.centeredMovingAverage !== 0
-					? point.value / point.centeredMovingAverage
-					: 1
+			let seasonalComponent
+			if (model === 'additive') {
+				seasonalComponent = point.value - point.centeredMovingAverage
+			} else {
+				seasonalComponent = point.value / point.centeredMovingAverage - 1
+			}
 
-			return { ...point, seasonalComponent }
+			return {
+				...point,
+				seasonalComponent,
+				deseasonalized:
+					model === 'additive'
+						? point.value - seasonalComponent
+						: point.value / (1 + seasonalComponent),
+			}
 		})
 
-		const seasonalIndices = Array.from({ length: seasonLength }, (_, i) => i)
-		const averageSeasonalComponents = seasonalIndices.map(seasonIndex => {
-			const componentsForSeason = seasonal
-				.filter(
-					(_, index) => index >= 3 && (index - 3) % seasonLength === seasonIndex
-				)
-				.map(point => point.seasonalComponent || 0)
-
-			return componentsForSeason.length
-				? componentsForSeason.reduce((sum, comp) => sum + comp, 0) /
-						componentsForSeason.length
-				: 0
-		})
+		const averageSeasonalComponents = Array.from(
+			{ length: seasonLength },
+			(_, i) => {
+				const componentsForSeason = seasonal
+					.filter(
+						(_, index) =>
+							index % seasonLength === i && _.seasonalComponent !== undefined
+					)
+					.map(point => point.seasonalComponent!)
+				return componentsForSeason.length
+					? componentsForSeason.reduce((sum, comp) => sum + comp, 0) /
+							componentsForSeason.length
+					: 0
+			}
+		)
 
 		const sumAdjusted = averageSeasonalComponents.reduce((a, b) => a + b, 0)
 		const adjustmentFactor =
-			model === 'additive'
-				? sumAdjusted / seasonLength
-				: Math.pow(
-						averageSeasonalComponents.reduce((a, b) => a * b, 1),
-						1 / seasonLength
-				  )
-
-		const adjustedSeasonalComponents = averageSeasonalComponents.map(comp =>
-			model === 'additive'
-				? comp - adjustmentFactor
-				: adjustmentFactor !== 0
-				? comp / adjustmentFactor
-				: 1
-		)
+			model === 'additive' ? sumAdjusted / seasonLength : sumAdjusted
 
 		const seasonalWithAverages = seasonal.map((point, index) => {
-			if (index < 3) return point
-			const seasonIndex = (index - 3) % seasonLength
+			const avgSeasonalComponent =
+				averageSeasonalComponents[index % seasonLength]
+			const adjustedSeasonalComponent =
+				model === 'additive'
+					? avgSeasonalComponent - adjustmentFactor
+					: avgSeasonalComponent / (1 + adjustmentFactor)
+
 			return {
 				...point,
-				averageSeasonalComponent: averageSeasonalComponents[seasonIndex],
-				adjustedSeasonalComponent: adjustedSeasonalComponents[seasonIndex],
+				averageSeasonalComponent: avgSeasonalComponent,
+				adjustedSeasonalComponent: adjustedSeasonalComponent,
+				deseasonalized:
+					point.value !== undefined && adjustedSeasonalComponent !== undefined
+						? model === 'additive'
+							? point.value - adjustedSeasonalComponent
+							: point.value / (1 + adjustedSeasonalComponent)
+						: undefined,
 			}
 		})
 
@@ -146,22 +156,27 @@ const SalesForecast: React.FC = () => {
 		const filteredData = data.filter(
 			point => point.centeredMovingAverage !== undefined
 		)
+		const n = filteredData.length
+
+		if (n === 0) return { slope: 0, intercept: 0 }
+
 		const sumX = filteredData.reduce((sum, point) => sum + point.period, 0)
-		const sumY = filteredData.reduce(
-			(sum, point) => sum + (point.centeredMovingAverage || 0),
-			0
-		)
-		const sumXY = filteredData.reduce(
-			(sum, point) => sum + point.period * (point.centeredMovingAverage || 0),
-			0
-		)
-		const sumX2 = filteredData.reduce(
+		const sumY = filteredData.reduce((sum, point) => {
+			return sum + (point.deseasonalized || point.centeredMovingAverage || 0)
+		}, 0)
+		const sumXY = filteredData.reduce((sum, point) => {
+			return (
+				sum +
+				point.period *
+					(point.deseasonalized || point.centeredMovingAverage || 0)
+			)
+		}, 0)
+		const sumXX = filteredData.reduce(
 			(sum, point) => sum + point.period * point.period,
 			0
 		)
-		const n = filteredData.length
 
-		const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+		const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
 		const intercept = (sumY - slope * sumX) / n
 
 		return { slope, intercept }
@@ -170,28 +185,35 @@ const SalesForecast: React.FC = () => {
 	const calculateModel = useCallback(() => {
 		if (seasonalComponents.length === 0) return
 
-		const { slope, intercept } = calculateTrendLine(seasonalComponents)
+		const deseasonalizedData = seasonalComponents.map(point => ({
+			period: point.period,
+			value: point.deseasonalized || 0,
+			centeredMovingAverage: point.centeredMovingAverage,
+		}))
+
+		const { slope, intercept } = calculateTrendLine(deseasonalizedData)
 
 		const modelData = seasonalComponents.map(point => {
 			const trend = slope * point.period + intercept
 			const seasonal = point.adjustedSeasonalComponent || 0
-			const tPlusSeasonal =
-				model === 'additive' ? trend + seasonal : trend * seasonal
-			const deseasonalized =
-				model === 'additive'
-					? point.value - seasonal
-					: seasonal !== 0
-					? point.value / seasonal
-					: point.value // Avoid division by zero
+
+			let tPlusSeasonal
+			if (model === 'additive') {
+				tPlusSeasonal = trend + seasonal
+			} else {
+				tPlusSeasonal = trend * (1 + seasonal)
+			}
+
 			const error = point.value - tPlusSeasonal
+
 			return {
 				...point,
 				trend,
 				seasonal,
 				tPlusSeasonal,
-				deseasonalized,
 				error,
 				errorSquared: error * error,
+				deseasonalized: point.deseasonalized,
 			}
 		})
 
@@ -204,18 +226,31 @@ const SalesForecast: React.FC = () => {
 		const { slope, intercept } = calculateTrendLine(seasonalComponents)
 		const seasonLength = 4
 		const lastPeriod = modelTable[modelTable.length - 1].period
+		const lastActualValue = modelTable[modelTable.length - 1].value
+		const lastTrendValue = modelTable[modelTable.length - 1].tPlusSeasonal || 0
 
 		const forecast: DataPoint[] = []
+
+		// Додаємо останню точку актуальних даних до прогнозу для з'єднання
+		forecast.push({
+			period: lastPeriod,
+			value: lastActualValue,
+			forecast: lastTrendValue,
+			trend: slope * lastPeriod + intercept,
+			seasonal:
+				seasonalComponents[lastPeriod - 1]?.adjustedSeasonalComponent || 0,
+		})
+
+		// Додаємо прогнозні точки
 		for (let i = 1; i <= forecastPeriods; i++) {
 			const period = lastPeriod + i
 			const trend = slope * period + intercept
 			const seasonalIndex = (period - 1) % seasonLength
 			const seasonal =
 				seasonalComponents[seasonalIndex]?.adjustedSeasonalComponent || 0
+
 			const forecastValue =
-				model === 'additive'
-					? trend + seasonal
-					: trend * (seasonal !== 0 ? seasonal : 1) // Avoid multiplying by zero
+				model === 'additive' ? trend + seasonal : trend * (1 + seasonal)
 
 			forecast.push({
 				period,
@@ -227,7 +262,7 @@ const SalesForecast: React.FC = () => {
 		}
 
 		setForecastData(forecast)
-	}, [modelTable, forecastPeriods, model, seasonalComponents])
+	}, [modelTable, forecastPeriods, seasonalComponents, model])
 
 	useEffect(() => {
 		calculateMovingAverage()
@@ -257,7 +292,7 @@ const SalesForecast: React.FC = () => {
 							<>
 								<th>Moving Average</th>
 								<th>Centered Moving Average</th>
-								<th>Deviation from the moving average</th>
+								<th>Deviation from Moving Average</th>
 							</>
 						)}
 						{caption === 'Seasonal Components Table' && (
@@ -266,14 +301,16 @@ const SalesForecast: React.FC = () => {
 								<th>Seasonal Component</th>
 								<th>Average Seasonal</th>
 								<th>Adjusted Seasonal</th>
+								<th>Deseasonalized</th>
 							</>
 						)}
 						{caption === 'Model Table' && (
 							<>
 								<th>Trend</th>
-								<th>S</th>
+								<th>Seasonal</th>
+								<th>T+S</th>
+								<th>Error</th>
 								<th>Deseasonalized</th>
-								<th>e</th>
 							</>
 						)}
 					</tr>
@@ -296,14 +333,16 @@ const SalesForecast: React.FC = () => {
 									<td>{row.seasonalComponent?.toFixed(2)}</td>
 									<td>{row.averageSeasonalComponent?.toFixed(2)}</td>
 									<td>{row.adjustedSeasonalComponent?.toFixed(2)}</td>
+									<td>{row.deseasonalized?.toFixed(2)}</td>
 								</>
 							)}
 							{caption === 'Model Table' && (
 								<>
 									<td>{row.trend?.toFixed(2)}</td>
 									<td>{row.seasonal?.toFixed(2)}</td>
-									<td>{row.deseasonalized?.toFixed(2)}</td>
+									<td>{row.tPlusSeasonal?.toFixed(2)}</td>
 									<td>{row.error?.toFixed(2)}</td>
+									<td>{row.deseasonalized?.toFixed(2)}</td>
 								</>
 							)}
 						</tr>
@@ -317,32 +356,60 @@ const SalesForecast: React.FC = () => {
 		() => (
 			<div className='chart-wrapper'>
 				<ResponsiveContainer width='100%' height={400}>
-					<LineChart data={data}>
+					<LineChart>
 						<CartesianGrid strokeDasharray='3 3' />
-						<XAxis dataKey='period' />
-						<YAxis />
+						<XAxis
+							dataKey='period'
+							type='number'
+							domain={['dataMin', 'dataMax']}
+							allowDataOverflow={true}
+						/>
+						<YAxis domain={['auto', 'auto']} />
 						<Tooltip />
 						<Legend />
+
+						{/* Actual data line */}
 						<Line
+							data={data}
 							type='monotone'
 							dataKey='value'
 							stroke='#8884d8'
 							name='Actual'
+							dot
+							connectNulls
 						/>
+
+						{/* Model line */}
 						{modelTable.length > 0 && (
 							<Line
-								type='monotone'
 								data={modelTable}
+								type='monotone'
 								dataKey='tPlusSeasonal'
 								stroke='#82ca9d'
 								name='Model'
+								dot
+								connectNulls
+							/>
+						)}
+
+						{/* Forecast line */}
+						{forecastData.length > 0 && (
+							<Line
+								data={forecastData}
+								type='monotone'
+								dataKey='forecast'
+								stroke='#ffc658'
+								name='Forecast'
+								dot
+								connectNulls
+								strokeDasharray='3 3'
 							/>
 						)}
 					</LineChart>
 				</ResponsiveContainer>
 			</div>
 		),
-		[data, modelTable]
+		[data, modelTable, forecastData]
 	)
 
 	const renderForecastTable = useCallback(
@@ -354,6 +421,8 @@ const SalesForecast: React.FC = () => {
 						<tr>
 							<th>Period</th>
 							<th>Forecast Value</th>
+							<th>Trend</th>
+							<th>Seasonal</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -361,6 +430,8 @@ const SalesForecast: React.FC = () => {
 							<tr key={row.period}>
 								<td>{row.period}</td>
 								<td>{row.forecast?.toFixed(2)}</td>
+								<td>{row.trend?.toFixed(2)}</td>
+								<td>{row.seasonal?.toFixed(2)}</td>
 							</tr>
 						))}
 					</tbody>
@@ -369,6 +440,7 @@ const SalesForecast: React.FC = () => {
 		),
 		[forecastData]
 	)
+
 	const downloadExcel = useCallback(() => {
 		const workbook = XLSX.utils.book_new()
 
