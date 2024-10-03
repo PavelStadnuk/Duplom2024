@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/Duplom2024/static/css/main.5366c2c3.css",
+    "main.css": "/Duplom2024/static/css/main.965beac0.css",
     "main.js": "/Duplom2024/static/js/main.ead6cc61.js",
     "static/js/453.b0632135.chunk.js": "/Duplom2024/static/js/453.b0632135.chunk.js",
     "index.html": "/Duplom2024/index.html",
-    "main.5366c2c3.css.map": "/Duplom2024/static/css/main.5366c2c3.css.map",
+    "main.965beac0.css.map": "/Duplom2024/static/css/main.965beac0.css.map",
     "main.ead6cc61.js.map": "/Duplom2024/static/js/main.ead6cc61.js.map",
     "453.b0632135.chunk.js.map": "/Duplom2024/static/js/453.b0632135.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.5366c2c3.css",
+    "static/css/main.965beac0.css",
     "static/js/main.ead6cc61.js"
   ]
 }
